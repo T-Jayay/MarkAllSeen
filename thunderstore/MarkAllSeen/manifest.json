@@ -1,0 +1,10 @@
+{
+  "name": "MarkAllSeen",
+  "version_number": "1.0.0",
+  "website_url": "",
+  "description": "Adds a \"Mark all as seen\" button to the mod settings that clears every \"New!\" marker on your profile.",
+  "dependencies": [
+    "bbepis-BepInExPack-5.4.2122",
+    "Rune580-Risk_Of_Options-2.8.6"
+  ]
+}

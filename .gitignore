@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+dist/
+
+# IDE / OS
+.vs/
+.idea/
+*.user
+*.suo
+Thumbs.db
+
+# Python
+__pycache__/
