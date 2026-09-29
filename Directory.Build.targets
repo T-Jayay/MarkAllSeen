@@ -1,0 +1,51 @@
+<Project>
+  <!--
+    Build targets shared by every project in the repo; the same file is in each mod repo. Paths and references are
+    in Directory.Build.props.
+  -->
+  <PropertyGroup>
+    <!-- The Thunderstore package of the mod this project builds, if it has one: thunderstore/<project name>/. -->
+    <ThunderstoreDir>$(MSBuildThisFileDirectory)thunderstore\$(MSBuildProjectName)\</ThunderstoreDir>
+    <ThunderstoreManifest>$(ThunderstoreDir)manifest.json</ThunderstoreManifest>
+    <ThunderstoreIcon>$(ThunderstoreDir)icon.png</ThunderstoreIcon>
+  </PropertyGroup>
+
+  <!-- Every build of the mod takes its assembly version from the manifest's version_number, so no project file
+       holds a version. The plugin's PluginVersion must match it (tools/package.py checks). -->
+  <PropertyGroup Condition="Exists('$(ThunderstoreManifest)')">
+    <ManifestVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(ThunderstoreManifest)')), '"version_number"\s*:\s*"([^"]*)"').Groups[1].Value)</ManifestVersion>
+    <Version Condition="'$(ManifestVersion)' != ''">$(ManifestVersion)</Version>
+  </PropertyGroup>
+
+  <!-- The store icon, embedded as the manifest resource "<project name>.icon.png" for the Risk of Options mod list. -->
+  <ItemGroup Condition="Exists('$(ThunderstoreIcon)')">
+    <EmbeddedResource Include="$(ThunderstoreIcon)" LogicalName="$(MSBuildProjectName).icon.png" Visible="false" />
+  </ItemGroup>
+
+  <!-- One clear error, instead of dozens of unresolved references, when a path in Directory.Build.props doesn't
+       match this machine. -->
+  <Target Name="CheckBuildInputs" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(ManagedDir)\RoR2.dll')"
+           Text="RoR2.dll not found in &quot;$(ManagedDir)&quot;. Set GameDir to your Risk of Rain 2 folder, e.g. -p:GameDir=&quot;D:\SteamLibrary\steamapps\common\Risk of Rain 2&quot;." />
+    <Error Condition="!Exists('$(BepInExCoreDir)\BepInEx.dll')"
+           Text="BepInEx.dll not found in &quot;$(BepInExCoreDir)&quot;. Set ProfileDir to a mod manager profile that has BepInExPack and Risk of Options installed, e.g. -p:ProfileDir=&quot;C:\Users\you\AppData\Roaming\r2modmanPlus-local\RiskOfRain2\profiles\Dev&quot;." />
+    <Error Condition="!Exists('$(RiskOfOptionsDir)\RiskOfOptions.dll')"
+           Text="RiskOfOptions.dll not found in &quot;$(RiskOfOptionsDir)&quot;. Install Risk of Options in the profile, or set ProfileDir to a profile that has it." />
+    <Error Condition="Exists('$(ThunderstoreManifest)') And '$(ManifestVersion)' == ''"
+           Text="No &quot;version_number&quot; found in &quot;$(ThunderstoreManifest)&quot;." />
+  </Target>
+
+  <!-- Copies the plugin (DLL and PDB) into the profile's BepInEx\plugins\<assembly name> folder after each build. -->
+  <Target Name="DeployToProfile" AfterTargets="Build" Condition="'$(DeployToProfile)' == 'true'">
+    <PropertyGroup>
+      <PluginDeployDir>$(ProfileDir)\BepInEx\plugins\$(AssemblyName)</PluginDeployDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(PluginDeployDir)" />
+    <!-- No retries: a running game keeps the plugin locked until it exits, so waiting wouldn't help. -->
+    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PluginDeployDir)"
+          SkipUnchangedFiles="true" Retries="0" ContinueOnError="WarnAndContinue" />
+    <Error Condition="'$(MSBuildLastTaskResult)' == 'false'"
+           Text="Couldn't copy the plugin into &quot;$(PluginDeployDir)&quot; (see the warning above). If the game is running, it has the plugin locked: close the game and build again, or build with -p:DeployToProfile=false." />
+    <Message Importance="high" Text="$(MSBuildProjectName) -> $(PluginDeployDir)\$(TargetFileName)" />
+  </Target>
+</Project>

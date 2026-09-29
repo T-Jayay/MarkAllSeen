@@ -1,3 +1,13 @@
-* text=auto
+# Text files have LF line endings in the repository and in every checkout, whatever core.autocrlf says
+# (tools/package.py ships some of them in the Thunderstore zip).
+* text=auto eol=lf
+
+# Binary files: never converted, diffed or merged as text.
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
 *.dll binary
+*.pdb binary
+*.zip binary

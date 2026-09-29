@@ -1,17 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Standalone mod, unrelated to DroneImprovements: a Risk of Options button that clears every "New!" marker. -->
-  <PropertyGroup>
-    <AssemblyName>MarkAllSeen</AssemblyName>
-    <RootNamespace>MarkAllSeen</RootNamespace>
-    <Version>1.0.0</Version>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <Reference Include="RiskOfOptions"><HintPath>$(ProfileDir)\BepInEx\plugins\Rune580-Risk_Of_Options\RiskOfOptions\RiskOfOptions.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
-
-  <Target Name="DeployToProfile" AfterTargets="Build" Condition="'$(DeployToProfile)' == 'true' And Exists('$(ProfileDir)')">
-    <MakeDir Directories="$(ProfileDir)\BepInEx\plugins\MarkAllSeen" />
-    <Copy SourceFiles="$(TargetPath);$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ProfileDir)\BepInEx\plugins\MarkAllSeen" />
-  </Target>
+  <!-- MarkAllSeen: a Risk of Options button that marks the "New!" entries as seen.
+       Everything else comes from Directory.Build.props and Directory.Build.targets in the repo root. -->
 </Project>
