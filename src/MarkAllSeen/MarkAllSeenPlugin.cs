@@ -12,7 +12,7 @@ namespace MarkAllSeen
     /// Adds a "Mark all as seen" button to the Risk of Options menu that clears every "New!" marker
     /// (logbook, items, skills, skins, survivors, ...) on your profile.
     /// </summary>
-    [BepInPlugin(PluginGUID, "MarkAllSeen", "1.0.0")]
+    [BepInPlugin(PluginGUID, "MarkAllSeen", "1.0.1")]
     [BepInDependency("com.rune580.riskofoptions")]
     public class MarkAllSeenPlugin : BaseUnityPlugin
     {
