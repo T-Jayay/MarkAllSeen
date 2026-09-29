@@ -2,6 +2,8 @@
 
 Risk of Rain 2 (BepInEx) mod: adds a **Mark all as seen** button to the [Risk of Options](https://thunderstore.io/package/Rune580/Risk_Of_Options/) menu that clears every "New!" marker on your profile (logbook, items, skills, skins, survivors). Only entries currently showing as new are marked, so content unlocked later is still flagged.
 
+Published on Thunderstore as [revoreverse-MarkAllSeen](https://thunderstore.io/c/riskofrain2/p/revoreverse/MarkAllSeen/). Released under [the Unlicense](LICENSE) (public domain). The general setup/build/publish guide lives in the [DroneImprovements repo](https://github.com/T-Jayay/DroneImprovements/blob/main/docs/MODDING_GUIDE.md).
+
 ## Building
 
 Requires the .NET SDK (8.0 used). Game and Thunderstore profile paths are set in `Directory.Build.props`; override them on the command line if yours differ, e.g. `-p:GameDir="D:\Games\Risk of Rain 2"`.
