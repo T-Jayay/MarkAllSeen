@@ -1,10 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using BepInEx;
 using BepInEx.Logging;
-using HarmonyLib;
 using RiskOfOptions;
 using RiskOfOptions.Options;
 using RoR2;
@@ -24,7 +22,7 @@ namespace MarkAllSeen
     {
         public const string PluginGUID = "revor.MarkAllSeen";
         public const string PluginName = "MarkAllSeen";
-        public const string PluginVersion = "1.0.1"; // tools/package.py checks this against the manifest
+        public const string PluginVersion = "1.0.2"; // tools/package.py checks this against the manifest
 
         // A hard dependency: the button is the whole mod.
         private const string RiskOfOptionsGuid = "com.rune580.riskofoptions";
@@ -40,26 +38,11 @@ namespace MarkAllSeen
         private const string SurvivorsFolder = "/Survivors/";
         private const string LoadoutBodiesFolder = "/Loadout/Bodies/";
 
-        private static readonly Vector2 centerPivot = new Vector2(0.5f, 0.5f);
-
-        // Each name the profile can't save is logged once, not on every press.
-        private static readonly HashSet<string> reportedUnsavableNames = new HashSet<string>();
-
-        // Every viewable (anything that can show "New!") by full name: ViewablesCatalog's private fullNameToNodeMap,
-        // the map FindNode looks names up in. The catalog has no public way to list them.
-        private static AccessTools.FieldRef<Dictionary<string, ViewablesCatalog.Node>> viewablesByName;
-
-        private static bool warningLogged;
-
         internal static ManualLogSource Log { get; private set; }
 
         private void Awake()
         {
             Log = Logger;
-            if (!FindViewables())
-            {
-                return;
-            }
             ModSettingsManager.SetModDescription("Clears the \"New!\" markers on your profile with one button.");
             ModSettingsManager.AddOption(new GenericButtonOption(
                 Title,
@@ -69,73 +52,25 @@ namespace MarkAllSeen
                 + "of survivors you haven't unlocked or whose DLC you don't own. There is no undo.",
                 "Mark all",
                 OnMarkAllPressed));
-            SetModIcon();
+            ModSettingsManager.SetModIcon(LoadIcon());
         }
 
-        /// <summary>
-        /// Looks up the catalog's map of viewables. The button can't work without it, so then it isn't added.
-        /// </summary>
-        private static bool FindViewables()
-        {
-            try
-            {
-                viewablesByName = AccessTools.StaticFieldRefAccess<Dictionary<string, ViewablesCatalog.Node>>(
-                    AccessTools.Field(typeof(ViewablesCatalog), "fullNameToNodeMap"));
-                return true;
-            }
-            catch (Exception e)
-            {
-                Log.LogError("Couldn't find the game's list of \"New!\" markers (ViewablesCatalog.fullNameToNodeMap; "
-                    + $"a game update may have changed it), so the Mark all as seen button isn't added. {e}");
-                return false;
-            }
-        }
-
-        /// <summary>Shows the store icon next to the mod in Risk of Options, instead of a question mark.</summary>
-        private static void SetModIcon()
-        {
-            try
-            {
-                Sprite icon = LoadIcon();
-                if (icon)
-                {
-                    ModSettingsManager.SetModIcon(icon);
-                }
-            }
-            catch (Exception e)
-            {
-                Log.LogWarning($"Couldn't give the mod its icon in Risk of Options. {e}");
-            }
-        }
-
-        /// <summary>The embedded store icon, or null with a warning when it is missing or can't be decoded.</summary>
+        /// <summary>The store icon, shown next to the mod in Risk of Options instead of a question mark.</summary>
         private static Sprite LoadIcon()
         {
             byte[] png;
             using (Stream stream = typeof(MarkAllSeenPlugin).Assembly.GetManifestResourceStream(IconResource))
+            using (MemoryStream buffer = new MemoryStream())
             {
-                if (stream == null)
-                {
-                    Log.LogWarning($"The DLL has no {IconResource}, so Risk of Options shows no icon for the mod.");
-                    return null;
-                }
-                using (MemoryStream buffer = new MemoryStream())
-                {
-                    stream.CopyTo(buffer);
-                    png = buffer.ToArray();
-                }
+                stream.CopyTo(buffer);
+                png = buffer.ToArray();
             }
             // LoadImage replaces the placeholder size and format with the image's.
             Texture2D texture = new Texture2D(2, 2);
-            if (!texture.LoadImage(png))
-            {
-                Destroy(texture);
-                Log.LogWarning($"Couldn't decode {IconResource}, so Risk of Options shows no icon for the mod.");
-                return null;
-            }
+            texture.LoadImage(png);
             // With the default Repeat, the edges of the scaled-down icon would blend with the opposite edges.
             texture.wrapMode = TextureWrapMode.Clamp;
-            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), centerPivot);
+            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f));
         }
 
         /// <summary>Marks what is showing "New!" for every local player, then says how many entries that was.</summary>
@@ -144,10 +79,7 @@ namespace MarkAllSeen
             int marked = 0;
             foreach (LocalUser user in LocalUserManager.readOnlyLocalUsersList)
             {
-                if (user?.userProfile != null)
-                {
-                    marked += MarkAllFor(user);
-                }
+                marked += MarkAllFor(user);
             }
             Log.LogInfo($"Marked {marked} entries as seen.");
 
@@ -170,9 +102,10 @@ namespace MarkAllSeen
             HashSet<string> leftAlone = GetEntriesOfUnavailableSurvivors(user);
             List<string> toMark = new List<string>();
             List<string> unsavable = new List<string>();
-            foreach (ViewablesCatalog.Node node in viewablesByName().Values)
+            // Every viewable (anything that can show "New!"): the catalog has no public way to list them.
+            foreach (ViewablesCatalog.Node node in ViewablesCatalog.fullNameToNodeMap.Values)
             {
-                if (node.isFolder || leftAlone.Contains(node.fullName) || !ShowsAsNew(node, profile))
+                if (node.isFolder || leftAlone.Contains(node.fullName) || !node.shouldShowUnviewed(profile))
                 {
                     continue;
                 }
@@ -180,7 +113,7 @@ namespace MarkAllSeen
                 {
                     toMark.Add(node.fullName);
                 }
-                else if (reportedUnsavableNames.Add(node.fullName))
+                else
                 {
                     unsavable.Add(node.fullName);
                 }
@@ -192,10 +125,10 @@ namespace MarkAllSeen
             }
 
             // Marked after the loop: marking raises onUserProfileViewedViewablesChanged, whose handlers shouldn't run
-            // while the catalog's map is being enumerated.
+            // while the catalog's map is being enumerated. The game batches the "New!" tag refresh to once per frame.
             foreach (string name in toMark)
             {
-                MarkAsViewed(profile, name);
+                profile.MarkViewableAsViewed(name);
             }
             if (toMark.Count > 0)
             {
@@ -218,7 +151,8 @@ namespace MarkAllSeen
             HashSet<string> names = new HashSet<string>();
             foreach (SurvivorDef survivor in SurvivorCatalog.allSurvivorDefs)
             {
-                if (!survivor || HasSurvivor(user, survivor))
+                if (user.userProfile.HasSurvivorUnlocked(survivor.survivorIndex)
+                    && survivor.CheckUserHasRequiredEntitlement(user))
                 {
                     continue;
                 }
@@ -236,41 +170,6 @@ namespace MarkAllSeen
                 }
             }
             return names;
-        }
-
-        /// <summary>
-        /// Whether the user has unlocked the survivor and owns the DLC it needs. When that can't be checked, the
-        /// survivor's entries are left alone.
-        /// </summary>
-        private static bool HasSurvivor(LocalUser user, SurvivorDef survivor)
-        {
-            try
-            {
-                return user.userProfile.HasSurvivorUnlocked(survivor.survivorIndex)
-                    && survivor.CheckUserHasRequiredEntitlement(user);
-            }
-            catch (Exception e)
-            {
-                LogWarningOnce($"checking survivor {survivor.cachedName}", e);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// The entry's own "New!" test. One that throws (a broken entry from another mod) counts as not new, so it
-        /// can't stop the other entries from being marked.
-        /// </summary>
-        private static bool ShowsAsNew(ViewablesCatalog.Node node, UserProfile profile)
-        {
-            try
-            {
-                return node.shouldShowUnviewed != null && node.shouldShowUnviewed(profile);
-            }
-            catch (Exception e)
-            {
-                LogWarningOnce($"checking {node.fullName}", e);
-                return false;
-            }
         }
 
         /// <summary>
@@ -292,37 +191,6 @@ namespace MarkAllSeen
             catch (XmlException)
             {
                 return false;
-            }
-        }
-
-        /// <summary>
-        /// Marks one entry. An error in another mod's handler of the change event can't stop the other entries.
-        /// </summary>
-        private static void MarkAsViewed(UserProfile profile, string name)
-        {
-            try
-            {
-                // Adds the name and raises onUserProfileViewedViewablesChanged, which refreshes the "New!" tags (the
-                // game batches that to once per frame).
-                profile.MarkViewableAsViewed(name);
-            }
-            catch (Exception e)
-            {
-                // Only an event handler can throw here, after the name has been added.
-                LogWarningOnce($"marking {name}", e);
-            }
-        }
-
-        /// <summary>
-        /// Logs a warning for the first error only: a broken entry or handler from another mod usually fails for each
-        /// of its entries and on every press.
-        /// </summary>
-        private static void LogWarningOnce(string action, Exception e)
-        {
-            if (!warningLogged)
-            {
-                warningLogged = true;
-                Log.LogWarning($"Error while {action}; skipped it (later errors aren't logged). {e}");
             }
         }
     }

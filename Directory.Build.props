@@ -1,26 +1,20 @@
 <Project>
   <!--
     Build settings shared by every project in the repo; the same file is in each mod repo. The shared targets
-    (version, store icon, path checks, deploy) are in Directory.Build.targets.
+    (version, store icon, deploy) are in Directory.Build.targets.
 
-    GameDir, ProfileDir and DeployToProfile depend on the machine. Pass them on the command line or set them as
-    environment variables, e.g.
-      dotnet build -p:GameDir="D:\SteamLibrary\steamapps\common\Risk of Rain 2"
+    The game, BepInEx and Risk of Options are referenced from NuGet, as in the R2Wiki's ExamplePlugin: the game's
+    publicized reference assemblies (RiskOfRain2.GameLibs) come from the BepInEx feed. None of them is shipped.
+
+    After each build the plugin is copied into a mod manager profile for testing (see DeployToProfile in
+    Directory.Build.targets). Choose another profile, or turn that off, on the command line or with environment
+    variables, e.g.
       dotnet build -p:ProfileDir="C:\Users\you\AppData\Roaming\r2modmanPlus-local\RiskOfRain2\profiles\Dev"
       dotnet build -p:DeployToProfile=false
   -->
   <PropertyGroup>
-    <!-- The game folder. The game's own assemblies are referenced from its Managed folder. -->
-    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Risk of Rain 2</GameDir>
-    <!-- A mod manager profile with BepInExPack and Risk of Options installed. BepInEx, Harmony and Risk of Options
-         are referenced from it, and the build deploys the plugin into it. -->
     <ProfileDir Condition="'$(ProfileDir)' == ''">$(APPDATA)\Thunderstore Mod Manager\DataFolder\RiskOfRain2\profiles\Test</ProfileDir>
-    <!-- Copy the plugin into ProfileDir after each build. -->
     <DeployToProfile Condition="'$(DeployToProfile)' == ''">true</DeployToProfile>
-
-    <ManagedDir>$(GameDir)\Risk of Rain 2_Data\Managed</ManagedDir>
-    <BepInExCoreDir>$(ProfileDir)\BepInEx\core</BepInExCoreDir>
-    <RiskOfOptionsDir>$(ProfileDir)\BepInEx\plugins\Rune580-Risk_Of_Options\RiskOfOptions</RiskOfOptionsDir>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -31,6 +25,7 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>portable</DebugType>
+    <RestoreAdditionalProjectSources>https://nuget.bepinex.dev/v3/index.json</RestoreAdditionalProjectSources>
     <!-- Reproducible builds that record no local folder names (C:\Users\...): source and PDB paths are written
          relative to the repo root as /_/. -->
     <Deterministic>true</Deterministic>
@@ -42,28 +37,11 @@
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
-  <!-- Compile-time references only: Private=false keeps them out of the build output, so no game, loader or
-       Risk of Options DLL is ever shipped. -->
   <ItemGroup>
-    <Reference Include="BepInEx" HintPath="$(BepInExCoreDir)\BepInEx.dll" Private="false" />
-    <Reference Include="0Harmony" HintPath="$(BepInExCoreDir)\0Harmony.dll" Private="false" />
-    <Reference Include="RiskOfOptions" HintPath="$(RiskOfOptionsDir)\RiskOfOptions.dll" Private="false" />
-    <Reference Include="RoR2" HintPath="$(ManagedDir)\RoR2.dll" Private="false" />
-    <Reference Include="HGCSharpUtils" HintPath="$(ManagedDir)\HGCSharpUtils.dll" Private="false" />
-    <Reference Include="LegacyResourcesAPI" HintPath="$(ManagedDir)\LegacyResourcesAPI.dll" Private="false" />
-    <Reference Include="KinematicCharacterController" HintPath="$(ManagedDir)\KinematicCharacterController.dll" Private="false" />
-    <Reference Include="Rewired_Core" HintPath="$(ManagedDir)\Rewired_Core.dll" Private="false" />
-    <Reference Include="com.unity.multiplayer-hlapi.Runtime" HintPath="$(ManagedDir)\com.unity.multiplayer-hlapi.Runtime.dll" Private="false" />
-    <Reference Include="Unity.Addressables" HintPath="$(ManagedDir)\Unity.Addressables.dll" Private="false" />
-    <Reference Include="Unity.ResourceManager" HintPath="$(ManagedDir)\Unity.ResourceManager.dll" Private="false" />
-    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
-    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
-    <Reference Include="UnityEngine.ImageConversionModule" HintPath="$(ManagedDir)\UnityEngine.ImageConversionModule.dll" Private="false" />
-    <Reference Include="UnityEngine.IMGUIModule" HintPath="$(ManagedDir)\UnityEngine.IMGUIModule.dll" Private="false" />
-    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
-    <Reference Include="UnityEngine.PhysicsModule" HintPath="$(ManagedDir)\UnityEngine.PhysicsModule.dll" Private="false" />
-    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
-    <Reference Include="UnityEngine.UI" HintPath="$(ManagedDir)\UnityEngine.UI.dll" Private="false" />
-    <Reference Include="UnityEngine.UIModule" HintPath="$(ManagedDir)\UnityEngine.UIModule.dll" Private="false" />
+    <PackageReference Include="BepInEx.Analyzers" Version="1.0.8" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="RiskOfRain2.GameLibs" Version="1.4.1-r.0" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
+    <PackageReference Include="Rune580.Mods.RiskOfRain2.RiskOfOptions" Version="2.8.6" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- Internal clean-up: the code now follows the Risk of Rain 2 modding community's conventions and no longer catches errors.
+- If an entry's "New!" check fails (a broken entry from another mod, for example), the button now stops with the error in the log, instead of skipping that entry.
+- Names the game can't save are listed in the log on every press, not only the first time.
+
 ## 1.0.1
 
 - Your profile is saved as soon as you press the button, so the marks survive a crash. Before, they were only saved when you closed the logbook, finished a run or quit the game.

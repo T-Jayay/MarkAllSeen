@@ -1,6 +1,6 @@
 {
   "name": "MarkAllSeen",
-  "version_number": "1.0.1",
+  "version_number": "1.0.2",
   "website_url": "https://github.com/T-Jayay/MarkAllSeen",
   "description": "Adds a \"Mark all as seen\" button to the mod settings that clears the \"New!\" markers on your profile in one click.",
   "dependencies": [
